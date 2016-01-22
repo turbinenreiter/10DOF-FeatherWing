@@ -369,6 +369,8 @@ UsedLibrary="/home/plam/Downloads/SparkFun-Eagle-Libraries-master/SparkFun-Senso
 UsedLibrary="/home/plam/Downloads/SparkFun-Eagle-Libraries-master/User-Submitted.lbr"
 UsedLibrary="/home/plam/eagle/libs/BMX055 Breakout.lbr"
 UsedLibrary="/home/plam/eagle/libs/SparkFun_BME280_Breakout_v10.lbr"
+UsedLibrary="/home/plam/eagle/libs/SparkFun-Connectors.lbr"
+UsedLibrary="/home/plam/eagle/libs/SparkFun-LED.lbr"
 
 [Win_1]
 Type="Control Panel"
