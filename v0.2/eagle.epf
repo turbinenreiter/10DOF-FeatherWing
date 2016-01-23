@@ -374,8 +374,8 @@ UsedLibrary="/home/plam/eagle/libs/SparkFun-LED.lbr"
 
 [Win_1]
 Type="Control Panel"
-Loc="124 72 723 471"
-State=1
+Loc="676 276 1275 675"
+State=2
 Number=0
 
 [Desktop]
