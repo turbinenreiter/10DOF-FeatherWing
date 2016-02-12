@@ -30,11 +30,13 @@
 #include <Servo.h>
 
 #define DEBUG
+#define LOG
 
 Servo myservo;
 
 const int chipSelect = 4;
-const int myLed = 15;
+const int myLed = 15; // red
+const int ServoLed = 16; //green
 
 float t, ax, ay, az, gx, gy, gz, mx, my, mz, T, p, alt; // variables to hold latest sensor data values
 float out[] = {t, ax, ay, az, gx, gy, gz, mx, my, mz, T, p, alt};
@@ -86,6 +88,7 @@ float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0}, magBias[3] = {0, 0, 0};
 int16_t tempCount;            // temperature raw count output
 float   temperature;          // Stores the BMX055 internal chip temperature in degrees Celsius
 float SelfTest[6];            // holds results of gyro and accelerometer self test
+int zerogcount = 0;
 
 void setup()
 {
@@ -93,6 +96,9 @@ void setup()
 
   Serial.begin(115200);
   Serial.println(F("\nStarting BMX055 tests !"));
+
+  pinMode(ServoLed, OUTPUT);
+  digitalWrite(ServoLed, LOW);
 
   pinMode(myLed, OUTPUT);
   digitalWrite(myLed, HIGH);
@@ -110,40 +116,17 @@ void setup()
   }
   Serial.println("card initialized.");
 
-  // Read the BMX-055 WHO_AM_I registers, this is a good test of communication
-  Serial.println("BMX055 accelerometer...");
   byte c = readByte(BMX055_ACC_ADDRESS, BMX055_ACC_WHOAMI);  // Read ACC WHO_AM_I register for BMX055
-  Serial.print("BMX055 ACC");
-  Serial.print(" I AM 0x");
-  Serial.print(c, HEX);
-  Serial.print(" I should be 0x");
-  Serial.println(0xFA, HEX);
-
-  Serial.println("BMX055 gyroscope...");
   byte d = readByte(BMX055_GYRO_ADDRESS, BMX055_GYRO_WHOAMI);  // Read GYRO WHO_AM_I register for BMX055
-  Serial.print("BMX055 GYRO");
-  Serial.print(" I AM 0x");
-  Serial.print(d, HEX);
-  Serial.print(" I should be 0x");
-  Serial.println(0x0F, HEX);
-
-  Serial.println("BMX055 magnetometer...");
   writeByte(BMX055_MAG_ADDRESS, BMX055_MAG_PWR_CNTL1, 0x01); // wake up magnetometer first thing
   delay(100);
   byte e = readByte(BMX055_MAG_ADDRESS, BMX055_MAG_WHOAMI);  // Read MAG WHO_AM_I register for BMX055
-  Serial.print("BMX055 MAG");
-  Serial.print(" I AM 0x");
-  Serial.print(e, HEX);
-  Serial.print(" I should be 0x");
-  Serial.println(0x32, HEX);
 
   if ((c == 0xFA) && (d == 0x0F) && (e == 0x32)) // WHO_AM_I should always be ACC = 0xFA, GYRO = 0x0F, MAG = 0x32
   {
     Serial.println("BMX055 is online...");
 
     initBMX055();
-    Serial.println("BMX055 initialized for active data mode...."); // Initialize device for active mode read of acclerometer, gyroscope, and temperature
-
     // get sensor resolutions, only need to do this once
     getAres();
     getGres();
@@ -152,31 +135,17 @@ void setup()
     trimBMX055();  // read the magnetometer calibration data
 
     fastcompaccelBMX055(accelBias);
-    Serial.println("accel biases (mg)");
-    Serial.println(1000.*accelBias[0]);
-    Serial.println(1000.*accelBias[1]);
-    Serial.println(1000.*accelBias[2]);
-    Serial.println("gyro biases (dps)");
-    Serial.println(gyroBias[0]);
-    Serial.println(gyroBias[1]);
-    Serial.println(gyroBias[2]);
-
     magcalBMX055(magBias);
-    Serial.println("mag biases (mG)");
-    Serial.println(magBias[0]);
-    Serial.println(magBias[1]);
-    Serial.println(magBias[2]);
 
   }
   else
   {
     Serial.print("Could not connect to BMX055: 0x");
-    Serial.println(c, HEX);
     while (1) ; // Loop forever if communication doesn't happen
   }
 
   if (!baro.begin()) {
-    Serial.println("Could not find a valid BMP280 sensor, check wiring!");
+    Serial.println("Could not find a valid BME280 sensor, check wiring!");
     while (1);
   }
 
@@ -203,7 +172,9 @@ void setup()
 
 void loop()
 {
+#ifdef LOG
   File dataFile = SD.open("log.csv", FILE_WRITE);
+#endif
   t0 = millis();
 
   while (millis() < t0 + 1000) {
@@ -235,10 +206,13 @@ void loop()
 
     float out[] = {t, ax, ay, az, gx, gy, gz, mx, my, mz, T, p, alt};
 
-    if (az < 0.1 && para_flag == 0) {
+    if (az < 0.1 && para_flag == 0 && zerogcount > 100) {
       myservo.write(45);              // tell servo to go to position in variable 'pos'
-      delay(15);                       // waits 15ms for the servo to reach the position
       para_flag = 1;
+      digitalWrite(ServoLed, HIGH);
+      delay(15);                       // waits 15ms for the servo to reach the position
+    } else if (az < 0.1 && para_flag == 0) {
+      zerogcount++;
     }
 
 #ifdef DEBUG
@@ -251,21 +225,17 @@ void loop()
     Serial.println("");
 #endif
 
-    if (dataFile) {
-      for (int i = 0; i < 13; i++) {
-        dataFile.print(out[i]);
-        if (i < 12) {
-          dataFile.print(",");
-        }
+#ifdef LOG
+    for (int i = 0; i < 13; i++) {
+      dataFile.print(out[i]);
+      if (i < 12) {
+        dataFile.print(",");
       }
-      dataFile.println("");
-
     }
-    // if the file isn't open, pop up an error:
-    else {
-      //Serial.println("error opening log.csv");
-    }
+    dataFile.println("");
+#endif
   }
-
+#ifdef LOG
   dataFile.close();
+#endif
 }
